@@ -5,7 +5,10 @@ description = "Add your description here"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi[standard]>=0.115.14",
+    "lxml>=6.0.0",
+    "minio>=7.2.15",
     "psycopg2-binary>=2.9.10",
+    "python-multipart>=0.0.20",
     "ruff>=0.12.2",
     "scalar-fastapi>=1.0.3",
     "sqlmodel>=0.0.24",

@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, UploadFile, Form
+from sqlalchemy import delete
 from sqlmodel import Session, select
 
 from app.cinema.models import (
@@ -6,10 +9,12 @@ from app.cinema.models import (
     CinemaHallCreate,
     Cinema,
     CinemaHall,
-    CinemaHallUpdate,
+    CinemaHallUpdate, Seat, SeatHallLink,
 )
 from app.db import get_session
+from app.minio import minio_handler
 from app.utils.exceptions import NotFoundModelException
+from app.utils.svg import process_scheme
 
 hall_router = APIRouter(prefix="/hall", tags=["Hall"])
 
@@ -87,3 +92,36 @@ def list_hall(cinema_id: int, session: Session = Depends(get_session)):
     halls = session.exec(statement).all()
 
     return halls
+
+@hall_router.post("/{hall_id}/scheme")
+def upload_scheme(svg_file: UploadFile, cinema_id: int, hall_id: int, session: Session = Depends(get_session)):
+    if not (
+        hall := session.exec(
+            select(CinemaHall).where(
+                CinemaHall.cinema_id == cinema_id, CinemaHall.id == hall_id
+            )
+        ).first()
+    ):
+        raise NotFoundModelException(CinemaHall)
+
+    seat_ids = [seat.id for seat in hall.seats]
+    session.exec(delete(SeatHallLink).where(SeatHallLink.seat_id.in_(seat_ids)))
+    session.exec(delete(Seat).where(Seat.id.in_(seat_ids)))
+    session.commit()
+
+    scheme, seats = process_scheme(svg_file.file)
+
+    scheme_object_name = f"cinema_{cinema_id}/hall_{hall_id}.svg"
+    minio_handler.upload_file(scheme_object_name, scheme, scheme.getbuffer().nbytes)
+
+    print(seats)
+    hall.scheme = scheme_object_name
+    for seat in seats:
+        seat.hall = hall
+
+    session.add_all([hall] + seats)
+    session.commit()
+
+    url = minio_handler.get_url(scheme_object_name)
+
+    return {"object_name": scheme_object_name, "download_url": url}

@@ -60,7 +60,7 @@ def delete_genre(genre_id: int, session: Session = Depends(get_session)):
         raise NotFoundModelException(Genre)
     session.delete(genre)
     session.commit()
-    return {"message": f"Successfully deleted hall with id {genre_id}"}
+    return {"message": f"Successfully deleted genre with id {genre_id}"}
 
 
 @film_router.get("/", response_model=list[FilmPublic])
@@ -112,4 +112,4 @@ def delete_film(film_id: int, session: Session = Depends(get_session)):
         raise NotFoundModelException(Film)
     session.delete(film)
     session.commit()
-    return {"message": f"Successfully deleted hall with id {film_id}"}
+    return {"message": f"Successfully deleted film with id {film_id}"}
